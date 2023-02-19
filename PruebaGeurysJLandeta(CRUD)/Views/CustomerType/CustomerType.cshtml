@@ -1,0 +1,34 @@
+﻿@model IEnumerable<PruebaGeurysJLandeta_CRUD_.Models.CustomerType>
+
+@{
+    ViewBag.Title = "CustomerType";
+}
+
+<h2>CustomerType</h2>
+
+<p>
+    @Html.ActionLink("Add Type", "AddCustomerType")
+</p>
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.Id)
+            @Html.DisplayNameFor(model => model.Description)
+        </th>
+        <th></th>
+    </tr>
+
+@foreach (var item in Model) {
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.Id)
+            @Html.DisplayFor(modelItem => item.Description)
+        </td>
+        <td>
+            <a href="~/CustomerType/EditCustomerType/@item.Id" class="btn btn-default">Edit</a>
+            <a href="~/CustomerType/DeleteCustomerType/@item.Id" class="btn btn-danger">Delete</a>
+        </td>
+    </tr>
+}
+
+</table>

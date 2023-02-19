@@ -1,0 +1,56 @@
+﻿@model IEnumerable<PruebaGeurysJLandeta_CRUD_.Models.Customer>
+
+@{
+    ViewBag.Title = "Customer";
+}
+
+<h2>Customer</h2>
+
+<p>
+    @Html.ActionLink("Add Customer", "AddCustomer")
+</p>
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.Id)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.CustName)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Adress)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Status)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.CustomerTypeId)
+        </th>
+        <th></th>
+    </tr>
+
+@foreach (var item in Model) {
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.Id)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.CustName)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Adress)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Status)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.CustomerTypeId)
+        </td>
+        <td>
+            <a href="~/Customer/EditCustomer/@item.Id" class="btn btn-default">Edit</a>
+            <a href="~/Customer/DeleteCustomer/@item.Id" class="btn btn-danger">Delete</a>
+        </td>
+    </tr>
+}
+
+</table>
