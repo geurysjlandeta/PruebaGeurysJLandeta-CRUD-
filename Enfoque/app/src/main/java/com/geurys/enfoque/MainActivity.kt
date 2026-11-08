@@ -338,13 +338,32 @@ private fun TimerRing(progress: Float, label: String, sub: String) {
 }
 
 @Composable
-private fun HourStepper(label: String, hour: Int, onChange: (Int) -> Unit) {
+private fun StepperRow(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
-        FilledTonalIconButton(onClick = { onChange(hour - 1) }, modifier = Modifier.size(36.dp)) { Text("−") }
-        Text("%02d:00".format(hour), Modifier.padding(horizontal = 14.dp), fontWeight = FontWeight.SemiBold)
-        FilledTonalIconButton(onClick = { onChange(hour + 1) }, modifier = Modifier.size(36.dp)) { Text("+") }
+        FilledTonalIconButton(onClick = onMinus, modifier = Modifier.size(36.dp)) { Text("−") }
+        Text(value, Modifier.padding(horizontal = 14.dp), fontWeight = FontWeight.SemiBold)
+        FilledTonalIconButton(onClick = onPlus, modifier = Modifier.size(36.dp)) { Text("+") }
     }
+}
+
+@Composable
+private fun HourStepper(label: String, hour: Int, onChange: (Int) -> Unit) =
+    StepperRow(label, "%02d:00".format(hour), { onChange(hour - 1) }, { onChange(hour + 1) })
+
+/** Diálogo con espera obligatoria: dar marcha atrás debe costar un poco. */
+@Composable
+private fun FrictionDialog(title: String, text: String, confirm: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    var left by remember { mutableIntStateOf(15) }
+    LaunchedEffect(Unit) { while (left > 0) { delay(1000); left-- } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) }, text = { Text(text) },
+        confirmButton = {
+            TextButton(enabled = left == 0, onClick = onConfirm) { Text(if (left > 0) "$confirm ($left)" else confirm) }
+        },
+        dismissButton = { Button(onClick = onDismiss) { Text("Seguir enfocado") } }
+    )
 }
 
 @Composable
@@ -379,7 +398,35 @@ private fun FocusTab() {
     var stop by remember { mutableIntStateOf(prefs.scheduleEnd) }
     var gray by remember { mutableStateOf(Grayscale.isOn(ctx)) }
     var autoGray by remember { mutableStateOf(prefs.autoGray) }
+    var nightOn by remember { mutableStateOf(prefs.nightEnabled) }
+    var nightStart by remember { mutableIntStateOf(prefs.nightStart) }
+    var nightEnd by remember { mutableIntStateOf(prefs.nightEnd) }
+    var pauseOn by remember { mutableStateOf(prefs.pauseEnabled) }
+    var pauseSecs by remember { mutableIntStateOf(prefs.pauseSeconds) }
+    var confirmEnd by remember { mutableStateOf(false) }
+    var confirmSchedOff by remember { mutableStateOf(false) }
+    var confirmNightOff by remember { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
+
+    if (confirmEnd) FrictionDialog(
+        "¿Terminar el Enfoque?", "Respira un momento. ¿De verdad necesitas esas apps ahora?", "Sí, terminar",
+        onConfirm = {
+            prefs.focusEndMillis = 0; end = 0
+            Grayscale.sync(ctx); gray = Grayscale.isOn(ctx)
+            confirmEnd = false
+        },
+        onDismiss = { confirmEnd = false }
+    )
+    if (confirmSchedOff) FrictionDialog(
+        "¿Desactivar el horario?", "Ahora mismo estás dentro de tu horario de enfoque.", "Sí, desactivar",
+        onConfirm = { schedOn = false; prefs.scheduleEnabled = false; confirmSchedOff = false },
+        onDismiss = { confirmSchedOff = false }
+    )
+    if (confirmNightOff) FrictionDialog(
+        "¿Desactivar el modo noche?", "Es hora de descansar. ¿Seguro?", "Sí, desactivar",
+        onConfirm = { nightOn = false; prefs.nightEnabled = false; confirmNightOff = false },
+        onDismiss = { confirmNightOff = false }
+    )
 
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { ScreenHeader("Enfoque", "Bloquea tus apps distractoras por un rato") }
@@ -396,10 +443,7 @@ private fun FocusTab() {
                             "Tus apps distractoras están bloqueadas.",
                             Modifier.padding(top = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        TextButton(onClick = {
-                            prefs.focusEndMillis = 0; end = 0
-                            Grayscale.sync(ctx); gray = Grayscale.isOn(ctx)
-                        }) { Text("Terminar antes") }
+                        TextButton(onClick = { confirmEnd = true }) { Text("Terminar antes") }
                     } else {
                         TimerRing(progress = 1f, label = "%02d:00".format(selected), sub = "minutos")
                         Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -423,12 +467,36 @@ private fun FocusTab() {
         }
         item {
             AppCard {
-                SwitchRow("Horario automático", "El Enfoque se activa solo, todos los días.", schedOn) {
-                    schedOn = it; prefs.scheduleEnabled = it
+                SwitchRow("Horario automático", "El Enfoque se activa solo, todos los días.", schedOn) { on ->
+                    if (!on && prefs.inSchedule()) confirmSchedOff = true
+                    else { schedOn = on; prefs.scheduleEnabled = on }
                 }
                 if (schedOn) {
                     HourStepper("Desde", start) { start = it.mod(24); prefs.scheduleStart = start }
                     HourStepper("Hasta", stop) { stop = it.mod(24); prefs.scheduleEnd = stop }
+                }
+            }
+        }
+        item {
+            AppCard {
+                SwitchRow("Modo noche", "Bloquea tus apps y baja los colores para dormir mejor.", nightOn) { on ->
+                    if (!on && prefs.inNight()) confirmNightOff = true
+                    else { nightOn = on; prefs.nightEnabled = on }
+                }
+                if (nightOn) {
+                    HourStepper("Desde", nightStart) { nightStart = it.mod(24); prefs.nightStart = nightStart }
+                    HourStepper("Hasta", nightEnd) { nightEnd = it.mod(24); prefs.nightEnd = nightEnd }
+                }
+            }
+        }
+        item {
+            AppCard {
+                SwitchRow("Pausa consciente", "Unos segundos para pensar antes de abrir una app distractora.", pauseOn) {
+                    pauseOn = it; prefs.pauseEnabled = it
+                }
+                if (pauseOn) {
+                    StepperRow("Espera", "$pauseSecs s", { pauseSecs = (pauseSecs - 5).coerceAtLeast(5); prefs.pauseSeconds = pauseSecs },
+                        { pauseSecs = (pauseSecs + 5).coerceAtMost(30); prefs.pauseSeconds = pauseSecs })
                 }
             }
         }

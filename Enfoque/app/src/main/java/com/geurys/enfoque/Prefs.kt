@@ -22,7 +22,7 @@ class Prefs(context: Context) {
         get() = sp.getLong("focus_total", 0L)
         set(value) = sp.edit().putLong("focus_total", value).apply()
 
-    val focusActive: Boolean get() = focusEndMillis > System.currentTimeMillis() || inSchedule()
+    val focusActive: Boolean get() = focusEndMillis > System.currentTimeMillis() || inSchedule() || inNight()
 
     var scheduleEnabled: Boolean
         get() = sp.getBoolean("sched_on", false)
@@ -34,12 +34,33 @@ class Prefs(context: Context) {
         get() = sp.getInt("sched_end", 17)
         set(v) = sp.edit().putInt("sched_end", v.mod(24)).apply()
 
-    fun inSchedule(): Boolean {
-        if (!scheduleEnabled) return false
+    private fun hourIn(s: Int, e: Int): Boolean {
         val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val s = scheduleStart; val e = scheduleEnd
         return if (s <= e) h in s until e else h >= s || h < e // soporta horarios que cruzan medianoche
     }
+
+    fun inSchedule(): Boolean = scheduleEnabled && hourIn(scheduleStart, scheduleEnd)
+
+    /** Modo noche: mismo bloqueo que el Enfoque, pensado para dormir mejor. */
+    var nightEnabled: Boolean
+        get() = sp.getBoolean("night_on", false)
+        set(v) = sp.edit().putBoolean("night_on", v).apply()
+    var nightStart: Int
+        get() = sp.getInt("night_start", 23)
+        set(v) = sp.edit().putInt("night_start", v.mod(24)).apply()
+    var nightEnd: Int
+        get() = sp.getInt("night_end", 7)
+        set(v) = sp.edit().putInt("night_end", v.mod(24)).apply()
+
+    fun inNight(): Boolean = nightEnabled && hourIn(nightStart, nightEnd)
+
+    /** Pausa consciente: espera antes de abrir una app distractora. */
+    var pauseEnabled: Boolean
+        get() = sp.getBoolean("pause_on", true)
+        set(v) = sp.edit().putBoolean("pause_on", v).apply()
+    var pauseSeconds: Int
+        get() = sp.getInt("pause_s", 10)
+        set(v) = sp.edit().putInt("pause_s", v.coerceIn(5, 30)).apply()
 
     /** Poner el celular en grises automáticamente mientras haya Enfoque. */
     var autoGray: Boolean

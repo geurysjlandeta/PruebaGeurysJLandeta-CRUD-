@@ -11,6 +11,10 @@ App Android (Kotlin + Jetpack Compose) para usar menos el celular y enfocarte m�
 
 - **Mensajes (WhatsApp mínimo)**: bloquea WhatsApp en la pestaña Apps y responde en texto plano desde la pestaña Mensajes (lee las notificaciones y usa su botón "Responder"). Sin stickers, estados ni canales. Solo puedes responder a chats que te hayan escrito; no inicia chats nuevos.
 
+- **Pausa consciente**: al abrir una app distractora (dentro de su límite) aparece una pausa de 5–30 s con "Mejor no" / "Continuar"; tras continuar, 5 min sin volver a pausar.
+- **Modo noche**: bloqueo + grises en el horario que elijas (por defecto 23:00–7:00).
+- **Fricción**: terminar el Enfoque o desactivar un horario activo exige esperar 15 s y confirmar.
+
 ## Permisos (se piden desde la app)
 1. **Acceso de uso**: medir el tiempo por app.
 3. **Acceso a notificaciones**: leer los mensajes de WhatsApp para la pestaña Mensajes (se guardan solo en el celular).

@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
  */
 class BlockerService : AccessibilityService() {
     private var lastBlock = 0L
+    private var lastPause = 0L
     private val lastWarn = mutableMapOf<String, Long>()
 
     // El uso se consulta como mucho cada 10 s (la consulta al sistema es pesada).
@@ -71,7 +72,11 @@ class BlockerService : AccessibilityService() {
             val usedMs = usedToday(pkg)
             val limitMs = limitMinutes * 60_000L
             if (usedMs < limitMs) {
-                warnIfClose(pkg, usedMs, limitMs)
+                if (prefs.pauseEnabled && !PauseState.allowed(pkg)) {
+                    showPause(pkg, usedMs, limitMinutes, prefs.pauseSeconds)
+                } else {
+                    warnIfClose(pkg, usedMs, limitMs)
+                }
                 return
             }
         }
@@ -86,6 +91,20 @@ class BlockerService : AccessibilityService() {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 .putExtra(BlockedActivity.EXTRA_PKG, pkg)
                 .putExtra(BlockedActivity.EXTRA_FOCUS, focus)
+        )
+    }
+
+    private fun showPause(pkg: String, usedMs: Long, limitMin: Int, seconds: Int) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastPause < 1500) return
+        lastPause = now
+        startActivity(
+            Intent(this, PauseActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(BlockedActivity.EXTRA_PKG, pkg)
+                .putExtra(PauseActivity.EXTRA_SECONDS, seconds)
+                .putExtra(PauseActivity.EXTRA_USED_MS, usedMs)
+                .putExtra(PauseActivity.EXTRA_LIMIT_MIN, limitMin)
         )
     }
 
