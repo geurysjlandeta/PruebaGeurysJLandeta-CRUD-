@@ -1,9 +1,14 @@
 package com.geurys.enfoque
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 
 /**
  * Se entera de qué app pasa al frente (solo el nombre del paquete, no lee contenido)
@@ -11,6 +16,24 @@ import android.view.accessibility.AccessibilityEvent
  */
 class BlockerService : AccessibilityService() {
     private var lastBlock = 0L
+    private val lastWarn = mutableMapOf<String, Long>()
+
+    // USER_PRESENT no se puede declarar en el manifest; el servicio vive siempre, así que lo registra aquí.
+    private val unlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = Prefs(context).addUnlock()
+    }
+
+    override fun onServiceConnected() {
+        ContextCompat.registerReceiver(
+            this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(unlockReceiver) }
+        super.onDestroy()
+    }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
@@ -21,8 +44,12 @@ class BlockerService : AccessibilityService() {
         val limitMinutes = prefs.limits()[pkg] ?: return // no es una app distractora
 
         val focus = prefs.focusActive
-        val overLimit = (Usage.todayMillis(this)[pkg] ?: 0L) >= limitMinutes * 60_000L
-        if (!focus && !overLimit) return
+        val usedMs = Usage.todayMillis(this)[pkg] ?: 0L
+        val limitMs = limitMinutes * 60_000L
+        if (!focus && usedMs < limitMs) {
+            warnIfClose(pkg, usedMs, limitMs)
+            return
+        }
 
         val now = SystemClock.elapsedRealtime()
         if (now - lastBlock < 1500) return // evita bucles de bloqueo
@@ -35,6 +62,19 @@ class BlockerService : AccessibilityService() {
                 .putExtra(BlockedActivity.EXTRA_PKG, pkg)
                 .putExtra(BlockedActivity.EXTRA_FOCUS, focus)
         )
+    }
+
+    /** Aviso al abrir una app cuando ya gastaste el 80 % de su límite. */
+    private fun warnIfClose(pkg: String, usedMs: Long, limitMs: Long) {
+        if (usedMs < limitMs * 0.8) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - (lastWarn[pkg] ?: 0L) < 60_000) return
+        lastWarn[pkg] = now
+        val left = ((limitMs - usedMs) / 60_000L).coerceAtLeast(1)
+        val label = runCatching {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+        }.getOrDefault(pkg)
+        Toast.makeText(this, "Te quedan $left min en $label hoy", Toast.LENGTH_LONG).show()
     }
 
     override fun onInterrupt() = Unit

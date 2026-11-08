@@ -3,9 +3,13 @@ package com.geurys.enfoque
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -116,6 +120,7 @@ private fun TodayTab(refresh: Int) {
         item {
             Text("Tiempo en pantalla hoy", style = MaterialTheme.typography.labelLarge)
             Text(fmt(total), style = MaterialTheme.typography.displaySmall)
+            Text("${Prefs(ctx).unlocksToday()} desbloqueos hoy", style = MaterialTheme.typography.bodyMedium)
         }
         items(shown.take(10)) { (pkg, ms) ->
             Column {
@@ -172,6 +177,16 @@ private fun AppsTab(refresh: Int) {
 }
 
 @Composable
+private fun HourStepper(label: String, hour: Int, onChange: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f))
+        TextButton(onClick = { onChange(hour - 1) }) { Text("−") }
+        Text("%02d:00".format(hour))
+        TextButton(onClick = { onChange(hour + 1) }) { Text("+") }
+    }
+}
+
+@Composable
 private fun FocusTab() {
     val ctx = LocalContext.current
     val prefs = remember { Prefs(ctx) }
@@ -183,9 +198,14 @@ private fun FocusTab() {
     }
     val remaining = (end - now).coerceAtLeast(0)
 
+    var schedOn by remember { mutableStateOf(prefs.scheduleEnabled) }
+    var start by remember { mutableIntStateOf(prefs.scheduleStart) }
+    var stop by remember { mutableIntStateOf(prefs.scheduleEnd) }
+    var gray by remember { mutableStateOf(Grayscale.isOn(ctx)) }
+
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (remaining > 0) {
@@ -194,13 +214,10 @@ private fun FocusTab() {
                 "%02d:%02d".format(remaining / 60_000, remaining / 1000 % 60),
                 style = MaterialTheme.typography.displayLarge
             )
-            Spacer(Modifier.height(8.dp))
             Text("Tus apps distractoras están bloqueadas.")
-            Spacer(Modifier.height(24.dp))
             OutlinedButton(onClick = { prefs.focusEndMillis = 0; end = 0 }) { Text("Terminar antes") }
         } else {
             Text("¿Cuánto tiempo quieres enfocarte?", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(15, 25, 45, 60).forEach { min ->
                     Button(onClick = {
@@ -209,8 +226,49 @@ private fun FocusTab() {
                     }) { Text("$min") }
                 }
             }
-            Spacer(Modifier.height(8.dp))
             Text("minutos", style = MaterialTheme.typography.bodySmall)
+        }
+
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Horario automático", style = MaterialTheme.typography.titleSmall)
+                    Text("Enfoque activo todos los días en este horario.", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = schedOn, onCheckedChange = { schedOn = it; prefs.scheduleEnabled = it })
+            }
+            if (schedOn) {
+                HourStepper("Desde", start) { start = it.mod(24); prefs.scheduleStart = start }
+                HourStepper("Hasta", stop) { stop = it.mod(24); prefs.scheduleEnd = stop }
+            }
+        }
+
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Escala de grises", style = MaterialTheme.typography.titleSmall)
+                    Text("Sin colores, el celular es menos adictivo.", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = gray, onCheckedChange = { on ->
+                    if (Grayscale.canToggle(ctx) && Grayscale.set(ctx, on)) gray = on
+                    else Toast.makeText(ctx, "Falta un permiso (ver abajo)", Toast.LENGTH_SHORT).show()
+                })
+            }
+            if (!Grayscale.canToggle(ctx)) {
+                Text(
+                    "Android pide un permiso especial. Conecta el celular a una PC y ejecuta una sola vez:\n${Grayscale.ADB_COMMAND}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        Text("Launcher minimalista", style = MaterialTheme.typography.titleSmall)
+        Text("Usa Enfoque como tu pantalla de inicio: solo reloj, favoritas y búsqueda.", style = MaterialTheme.typography.bodySmall)
+        Button(onClick = { ctx.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }) {
+            Text("Elegir como launcher")
         }
     }
 }

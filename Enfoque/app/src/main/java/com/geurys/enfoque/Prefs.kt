@@ -1,6 +1,10 @@
 package com.geurys.enfoque
 
 import android.content.Context
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /** Preferencias simples: límites diarios por app y sesión de enfoque activa. */
 class Prefs(context: Context) {
@@ -12,7 +16,48 @@ class Prefs(context: Context) {
         get() = sp.getLong("focus_end", 0L)
         set(value) = sp.edit().putLong("focus_end", value).apply()
 
-    val focusActive: Boolean get() = focusEndMillis > System.currentTimeMillis()
+    /** Enfoque activo: sesión manual en curso o dentro del horario automático. */
+    val focusActive: Boolean get() = focusEndMillis > System.currentTimeMillis() || inSchedule()
+
+    var scheduleEnabled: Boolean
+        get() = sp.getBoolean("sched_on", false)
+        set(v) = sp.edit().putBoolean("sched_on", v).apply()
+    var scheduleStart: Int
+        get() = sp.getInt("sched_start", 9)
+        set(v) = sp.edit().putInt("sched_start", v.mod(24)).apply()
+    var scheduleEnd: Int
+        get() = sp.getInt("sched_end", 17)
+        set(v) = sp.edit().putInt("sched_end", v.mod(24)).apply()
+
+    fun inSchedule(): Boolean {
+        if (!scheduleEnabled) return false
+        val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val s = scheduleStart; val e = scheduleEnd
+        return if (s <= e) h in s until e else h >= s || h < e // soporta horarios que cruzan medianoche
+    }
+
+    private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+    fun unlocksToday(): Int =
+        if (sp.getString("unlock_day", "") == today()) sp.getInt("unlock_count", 0) else 0
+
+    fun addUnlock() {
+        sp.edit().putString("unlock_day", today()).putInt("unlock_count", unlocksToday() + 1).apply()
+    }
+
+    /** Apps favoritas que se ven en el launcher. */
+    fun favorites(): Set<String> = sp.getStringSet("favs", emptySet()).orEmpty()
+    fun toggleFavorite(pkg: String) {
+        val f = favorites().toMutableSet()
+        if (!f.add(pkg)) f.remove(pkg)
+        sp.edit().putStringSet("favs", f).apply()
+    }
+
+    /** ¿Esta app debe estar bloqueada ahora mismo? */
+    fun isBlocked(ctx: Context, pkg: String, usageToday: Map<String, Long>): Boolean {
+        val limit = limits()[pkg] ?: return false
+        return focusActive || (usageToday[pkg] ?: 0L) >= limit * 60_000L
+    }
 
     /** paquete -> minutos permitidos por día. */
     fun limits(): Map<String, Int> {
