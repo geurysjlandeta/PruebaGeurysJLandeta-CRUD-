@@ -60,8 +60,24 @@ class BlockerService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (event == null) return
         val pkg = event.packageName?.toString() ?: return
+
+        // Mensajes de WhatsApp: el sistema avisa a Accesibilidad cuando aparece una notificación.
+        if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            if (pkg in NotificationService.WHATSAPP) {
+                (event.parcelableData as? android.app.Notification)?.let {
+                    NotifParser.process(this, it, "acc:$pkg", "accesibilidad")
+                } ?: run {
+                    NotifParser.lastSeenAt = System.currentTimeMillis()
+                    NotifParser.lastSource = "accesibilidad"
+                    NotifParser.lastInfo = "llegó un aviso pero sin datos legibles"
+                    Inbox.version.intValue++
+                }
+            }
+            return
+        }
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         if (pkg == packageName) return
 
         val prefs = Prefs(this)

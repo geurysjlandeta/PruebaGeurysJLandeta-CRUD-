@@ -568,9 +568,11 @@ private fun MessagesTab(refresh: Int) {
     val version = Inbox.version.intValue
     var open by remember { mutableStateOf<String?>(null) }
     BackHandler(open != null) { open = null }
-    val hasAccess = remember(refresh) { Usage.hasNotificationAccess(ctx) }
+    val listenerOk = remember(refresh) { Usage.hasNotificationAccess(ctx) }
+    val accOk = remember(refresh) { Usage.isBlockerEnabled(ctx) }
+    val hasAccess = listenerOk || accOk
     LaunchedEffect(refresh) {
-        if (hasAccess && !NotificationService.connected) NotificationService.rebind(ctx)
+        if (listenerOk && !NotificationService.connected) NotificationService.rebind(ctx)
     }
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
@@ -589,7 +591,7 @@ private fun MessagesTab(refresh: Int) {
                 AppCard(container = MaterialTheme.colorScheme.primaryContainer) {
                     Text("Falta un permiso", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "Para leer tus mensajes de WhatsApp y responderlos desde aquí.",
+                        "Para leer tus mensajes de WhatsApp activa el Bloqueador (pestaña Hoy) o el acceso a notificaciones.",
                         Modifier.padding(top = 2.dp, bottom = 12.dp), style = MaterialTheme.typography.bodyMedium
                     )
                     Button(onClick = { ctx.startActivity(Usage.notificationAccessIntent()) }) { Text("Dar acceso a notificaciones") }
@@ -599,7 +601,7 @@ private fun MessagesTab(refresh: Int) {
         if (hasAccess) {
             item {
                 AppCard {
-                    Text(notifStatusText(), style = MaterialTheme.typography.bodyMedium)
+                    Text(notifStatusText(ctx), style = MaterialTheme.typography.bodyMedium)
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilledTonalButton(onClick = { refreshNotifications(ctx) }) { Text("Actualizar") }
                         TextButton(onClick = {

@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">Enfoque</string>
-    <string name="a11y_description">Detecta qué app se abre para bloquear solo las apps distractoras que tú elegiste cuando pasas tu límite diario o estás en modo Enfoque. No lee el contenido de la pantalla.</string>
+    <string name="a11y_description">Detecta qué app se abre para bloquear solo las apps distractoras que tú elegiste, y lee las notificaciones de WhatsApp para mostrarlas en la pestaña Mensajes y poder responder. No lee el contenido de otras pantallas. Todo se queda en tu celular.</string>
 </resources>

@@ -74,13 +74,16 @@ internal fun AppIcon(pkg: String, size: Dp = 40.dp) {
     }
 }
 
-/** Texto de diagnóstico: ¿está el lector de notificaciones conectado y viendo mensajes? */
-internal fun notifStatusText(): String {
+/** Texto de diagnóstico: ¿hay alguna fuente conectada y está viendo mensajes? */
+internal fun notifStatusText(ctx: Context): String {
     val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val listener = NotificationService.connected
+    val acc = Usage.isBlockerEnabled(ctx)
+    val via = if (listener) "notificaciones" else "accesibilidad"
     return when {
-        !NotificationService.connected -> "⚠ Sin conexión con las notificaciones"
-        NotificationService.lastSeenAt == 0L -> "Conectado · aún no ha llegado ninguna notificación de WhatsApp"
-        else -> "Conectado · última de WhatsApp a las ${fmt.format(Date(NotificationService.lastSeenAt))} (${NotificationService.lastInfo})"
+        !listener && !acc -> "⚠ Sin conexión: activa el Bloqueador (pestaña Hoy) o el acceso a notificaciones"
+        NotifParser.lastSeenAt == 0L -> "Conectado ($via) · aún no ha llegado ninguna notificación de WhatsApp"
+        else -> "Conectado ($via) · última de WhatsApp a las ${fmt.format(Date(NotifParser.lastSeenAt))} (${NotifParser.lastInfo})"
     }
 }
 

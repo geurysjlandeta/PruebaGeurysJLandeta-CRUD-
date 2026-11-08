@@ -200,9 +200,11 @@ private fun MessagesPanel() {
     }
     val unread = remember(version, seenAt) { Inbox.unreadSince(seenAt) }
     val accent = MaterialTheme.colorScheme.primary
-    val hasAccess = remember(open) { Usage.hasNotificationAccess(ctx) }
+    val listenerOk = remember(open) { Usage.hasNotificationAccess(ctx) }
+    val accOk = remember(open) { Usage.isBlockerEnabled(ctx) }
+    val hasAccess = listenerOk || accOk
     LaunchedEffect(open) {
-        if (hasAccess && !NotificationService.connected) NotificationService.rebind(ctx)
+        if (listenerOk && !NotificationService.connected) NotificationService.rebind(ctx)
     }
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
@@ -236,7 +238,7 @@ private fun MessagesPanel() {
                     if (c == null) {
                         val convos = remember(version) { Inbox.conversations().take(6) }
                         if (!hasAccess) {
-                            Text("Para ver tus mensajes, da acceso a las notificaciones.", color = Color(0xFF94A3B8))
+                            Text("Para ver tus mensajes, activa el Bloqueador en la app (pestaña Hoy).", color = Color(0xFF94A3B8))
                             TextButton(onClick = { Usage.startSafely(ctx, Usage.notificationAccessIntent()) }) {
                                 Text("Dar acceso")
                             }
@@ -267,7 +269,7 @@ private fun MessagesPanel() {
                         if (hasAccess) {
                             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    notifStatusText(), Modifier.weight(1f),
+                                    notifStatusText(ctx), Modifier.weight(1f),
                                     style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B)
                                 )
                                 TextButton(onClick = { refreshNotifications(ctx) }) { Text("Actualizar") }

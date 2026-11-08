@@ -17,7 +17,7 @@ App Android (Kotlin + Jetpack Compose) para usar menos el celular y enfocarte m�
 
 ## Permisos (se piden desde la app)
 1. **Acceso de uso**: medir el tiempo por app.
-3. **Acceso a notificaciones**: leer los mensajes de WhatsApp para la pestaña Mensajes (se guardan solo en el celular).
+3. **Acceso a notificaciones** (opcional): fuente alternativa para los mensajes de WhatsApp. Por defecto los mensajes se leen por el servicio de accesibilidad, que ya está activo, así que no hace falta este permiso.
 2. **Servicio de accesibilidad**: solo detecta el paquete de la app que se abre para bloquearla; `canRetrieveWindowContent=false`, no lee la pantalla.
 
 ## Ejecutar
