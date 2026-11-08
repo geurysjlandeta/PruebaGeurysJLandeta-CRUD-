@@ -81,6 +81,11 @@ class Prefs(context: Context) {
         sp.edit().putString("unlock_day", today()).putInt("unlock_count", unlocksToday() + 1).apply()
     }
 
+    /** Hasta cuándo el usuario vio los mensajes (para la insignia de nuevos). */
+    var msgsSeenAt: Long
+        get() = sp.getLong("msgs_seen", 0L)
+        set(v) = sp.edit().putLong("msgs_seen", v).apply()
+
     /** Apps favoritas que se ven en el launcher. */
     fun favorites(): Set<String> = sp.getStringSet("favs", emptySet()).orEmpty()
     fun toggleFavorite(pkg: String) {

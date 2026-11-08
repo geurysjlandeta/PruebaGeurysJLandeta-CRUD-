@@ -75,6 +75,9 @@ object Inbox {
         msgs.groupBy { it.convo }.map { (_, l) -> l.maxByOrNull { it.time }!! }.sortedByDescending { it.time }
 
     @Synchronized
+    fun unreadSince(t: Long): Int = msgs.count { !it.mine && it.time > t }
+
+    @Synchronized
     fun messages(convo: String): List<Msg> = msgs.filter { it.convo == convo }.sortedBy { it.time }
 
     /** Envía [text] como respuesta rápida de la notificación. false si ya no se puede responder. */
