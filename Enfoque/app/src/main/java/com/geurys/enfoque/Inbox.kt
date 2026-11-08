@@ -45,9 +45,9 @@ object Inbox {
     private fun keyOf(m: Msg) = "${m.convo}|${m.time}|${m.text}"
 
     @Synchronized
-    fun add(ctx: Context, m: Msg) {
+    fun add(ctx: Context, m: Msg): Boolean {
         load(ctx)
-        if (!seen.add(keyOf(m))) return
+        if (!seen.add(keyOf(m))) return false
         msgs.add(m)
         while (msgs.size > 300) seen.remove(keyOf(msgs.removeAt(0)))
         val arr = JSONArray()
@@ -56,7 +56,13 @@ object Inbox {
         }
         ctx.getSharedPreferences("inbox", Context.MODE_PRIVATE).edit().putString("msgs", arr.toString()).apply()
         version.intValue++
+        return true
     }
+
+    /** ¿Este texto es el eco de un mensaje que acabamos de enviar nosotros? */
+    @Synchronized
+    fun isOwnEcho(convo: String, text: String, time: Long) =
+        msgs.any { it.mine && it.convo == convo && it.text == text && kotlin.math.abs(it.time - time) < 180_000 }
 
     @Synchronized
     fun setTarget(convo: String, t: Target) { targets[convo] = t; version.intValue++ }

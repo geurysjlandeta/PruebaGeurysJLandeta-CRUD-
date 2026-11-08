@@ -569,6 +569,9 @@ private fun MessagesTab(refresh: Int) {
     var open by remember { mutableStateOf<String?>(null) }
     BackHandler(open != null) { open = null }
     val hasAccess = remember(refresh) { Usage.hasNotificationAccess(ctx) }
+    LaunchedEffect(refresh) {
+        if (hasAccess && !NotificationService.connected) NotificationService.rebind(ctx)
+    }
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     val convo = open
@@ -590,6 +593,24 @@ private fun MessagesTab(refresh: Int) {
                         Modifier.padding(top = 2.dp, bottom = 12.dp), style = MaterialTheme.typography.bodyMedium
                     )
                     Button(onClick = { ctx.startActivity(Usage.notificationAccessIntent()) }) { Text("Dar acceso a notificaciones") }
+                }
+            }
+        }
+        if (hasAccess) {
+            item {
+                AppCard {
+                    Text(notifStatusText(), style = MaterialTheme.typography.bodyMedium)
+                    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = { refreshNotifications(ctx) }) { Text("Actualizar") }
+                        TextButton(onClick = {
+                            Usage.startSafely(ctx, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }) { Text("Ahorro de batería") }
+                    }
+                    Text(
+                        "Si no llegan mensajes: en Ajustes pon la batería de Enfoque en \"Sin restricciones\" y activa el inicio automático.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
         }

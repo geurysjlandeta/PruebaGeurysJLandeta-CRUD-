@@ -201,6 +201,9 @@ private fun MessagesPanel() {
     val unread = remember(version, seenAt) { Inbox.unreadSince(seenAt) }
     val accent = MaterialTheme.colorScheme.primary
     val hasAccess = remember(open) { Usage.hasNotificationAccess(ctx) }
+    LaunchedEffect(open) {
+        if (hasAccess && !NotificationService.connected) NotificationService.rebind(ctx)
+    }
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -259,6 +262,15 @@ private fun MessagesPanel() {
                                     )
                                 }
                                 Text(timeFmt.format(Date(m.time)), style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
+                            }
+                        }
+                        if (hasAccess) {
+                            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    notifStatusText(), Modifier.weight(1f),
+                                    style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B)
+                                )
+                                TextButton(onClick = { refreshNotifications(ctx) }) { Text("Actualizar") }
                             }
                         }
                     } else {

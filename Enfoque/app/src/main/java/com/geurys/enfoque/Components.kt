@@ -1,5 +1,10 @@
 package com.geurys.enfoque
 
+import android.content.Context
+import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -67,4 +72,22 @@ internal fun AppIcon(pkg: String, size: Dp = 40.dp) {
     Box(Modifier.size(size).clip(RoundedCornerShape(size / 4)).background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
         bmp?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
     }
+}
+
+/** Texto de diagnóstico: ¿está el lector de notificaciones conectado y viendo mensajes? */
+internal fun notifStatusText(): String {
+    val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return when {
+        !NotificationService.connected -> "⚠ Sin conexión con las notificaciones"
+        NotificationService.lastSeenAt == 0L -> "Conectado · aún no ha llegado ninguna notificación de WhatsApp"
+        else -> "Conectado · última de WhatsApp a las ${fmt.format(Date(NotificationService.lastSeenAt))} (${NotificationService.lastInfo})"
+    }
+}
+
+/** Reconecta el servicio y relee las notificaciones de WhatsApp que ya están en la barra. */
+internal fun refreshNotifications(ctx: Context) {
+    val s = NotificationService.instance
+    if (s != null) s.syncActive() else NotificationService.rebind(ctx)
+    Inbox.version.intValue++
+    Toast.makeText(ctx, "Actualizando mensajes…", Toast.LENGTH_SHORT).show()
 }
