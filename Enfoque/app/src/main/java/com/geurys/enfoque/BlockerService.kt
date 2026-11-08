@@ -20,6 +20,15 @@ class BlockerService : AccessibilityService() {
     private var lastBlock = 0L
     private val lastWarn = mutableMapOf<String, Long>()
 
+    // El uso se consulta como mucho cada 10 s (la consulta al sistema es pesada).
+    private var usageCache: Map<String, Long> = emptyMap()
+    private var usageAt = -60_000L
+    private fun usedToday(pkg: String): Long {
+        val now = SystemClock.elapsedRealtime()
+        if (now - usageAt > 10_000) { usageCache = Usage.todayMillis(this); usageAt = now }
+        return usageCache[pkg] ?: 0L
+    }
+
     // USER_PRESENT no se puede declarar en el manifest; el servicio vive siempre, así que lo registra aquí.
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = Prefs(context).addUnlock()
@@ -58,11 +67,13 @@ class BlockerService : AccessibilityService() {
         val limitMinutes = prefs.limits()[pkg] ?: return // no es una app distractora
 
         val focus = prefs.focusActive
-        val usedMs = Usage.todayMillis(this)[pkg] ?: 0L
-        val limitMs = limitMinutes * 60_000L
-        if (!focus && usedMs < limitMs) {
-            warnIfClose(pkg, usedMs, limitMs)
-            return
+        if (!focus) { // en Enfoque se bloquea directo, sin consultar el uso
+            val usedMs = usedToday(pkg)
+            val limitMs = limitMinutes * 60_000L
+            if (usedMs < limitMs) {
+                warnIfClose(pkg, usedMs, limitMs)
+                return
+            }
         }
 
         val now = SystemClock.elapsedRealtime()

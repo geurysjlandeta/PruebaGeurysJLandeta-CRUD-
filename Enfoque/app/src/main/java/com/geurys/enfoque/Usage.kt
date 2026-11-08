@@ -8,6 +8,8 @@ import android.os.Process
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import java.util.Calendar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object Usage {
     fun hasUsageAccess(ctx: Context): Boolean {
@@ -43,6 +45,9 @@ object Usage {
             .mapValues { it.value.totalTimeInForeground }
             .filterValues { it > 0 }
     }
+
+    /** Igual que [todayMillis] pero fuera del hilo principal. */
+    suspend fun todayAsync(ctx: Context): Map<String, Long> = withContext(Dispatchers.IO) { todayMillis(ctx) }
 
     fun usageSettingsIntent() = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
     fun accessibilitySettingsIntent() = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)

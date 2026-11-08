@@ -17,6 +17,11 @@ class Prefs(context: Context) {
         set(value) = sp.edit().putLong("focus_end", value).apply()
 
     /** Enfoque activo: sesión manual en curso o dentro del horario automático. */
+    /** Duración total de la sesión manual (para dibujar el progreso). */
+    var focusTotalMillis: Long
+        get() = sp.getLong("focus_total", 0L)
+        set(value) = sp.edit().putLong("focus_total", value).apply()
+
     val focusActive: Boolean get() = focusEndMillis > System.currentTimeMillis() || inSchedule()
 
     var scheduleEnabled: Boolean
