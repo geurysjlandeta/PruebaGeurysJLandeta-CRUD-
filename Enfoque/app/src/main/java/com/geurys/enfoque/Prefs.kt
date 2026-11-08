@@ -36,6 +36,16 @@ class Prefs(context: Context) {
         return if (s <= e) h in s until e else h >= s || h < e // soporta horarios que cruzan medianoche
     }
 
+    /** Poner el celular en grises automáticamente mientras haya Enfoque. */
+    var autoGray: Boolean
+        get() = sp.getBoolean("auto_gray", false)
+        set(v) = sp.edit().putBoolean("auto_gray", v).apply()
+
+    /** Verdadero si fuimos nosotros quienes encendimos los grises (para no apagar los que puso el usuario). */
+    var grayByUs: Boolean
+        get() = sp.getBoolean("gray_by_us", false)
+        set(v) = sp.edit().putBoolean("gray_by_us", v).apply()
+
     private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
     fun unlocksToday(): Int =

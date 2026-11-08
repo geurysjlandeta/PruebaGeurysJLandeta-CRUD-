@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
@@ -23,7 +25,18 @@ class BlockerService : AccessibilityService() {
         override fun onReceive(context: Context, intent: Intent) = Prefs(context).addUnlock()
     }
 
+    // Revisa cada 15 s si empezó o terminó el Enfoque (sesión manual u horario) para ajustar los grises.
+    private val handler = Handler(Looper.getMainLooper())
+    private val grayTick = object : Runnable {
+        override fun run() {
+            Grayscale.sync(this@BlockerService)
+            handler.postDelayed(this, 15_000)
+        }
+    }
+
     override fun onServiceConnected() {
+        handler.removeCallbacks(grayTick)
+        handler.post(grayTick)
         ContextCompat.registerReceiver(
             this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT),
             ContextCompat.RECEIVER_NOT_EXPORTED
@@ -31,6 +44,7 @@ class BlockerService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(grayTick)
         runCatching { unregisterReceiver(unlockReceiver) }
         super.onDestroy()
     }

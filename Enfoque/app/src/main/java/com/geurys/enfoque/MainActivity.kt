@@ -202,6 +202,7 @@ private fun FocusTab() {
     var start by remember { mutableIntStateOf(prefs.scheduleStart) }
     var stop by remember { mutableIntStateOf(prefs.scheduleEnd) }
     var gray by remember { mutableStateOf(Grayscale.isOn(ctx)) }
+    var autoGray by remember { mutableStateOf(prefs.autoGray) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -215,7 +216,10 @@ private fun FocusTab() {
                 style = MaterialTheme.typography.displayLarge
             )
             Text("Tus apps distractoras están bloqueadas.")
-            OutlinedButton(onClick = { prefs.focusEndMillis = 0; end = 0 }) { Text("Terminar antes") }
+            OutlinedButton(onClick = {
+                prefs.focusEndMillis = 0; end = 0
+                Grayscale.sync(ctx); gray = Grayscale.isOn(ctx)
+            }) { Text("Terminar antes") }
         } else {
             Text("¿Cuánto tiempo quieres enfocarte?", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -223,6 +227,8 @@ private fun FocusTab() {
                     Button(onClick = {
                         end = System.currentTimeMillis() + min * 60_000L
                         prefs.focusEndMillis = end
+                        Grayscale.sync(ctx)
+                        gray = Grayscale.isOn(ctx)
                     }) { Text("$min") }
                 }
             }
@@ -254,6 +260,13 @@ private fun FocusTab() {
                 Switch(checked = gray, onCheckedChange = { on ->
                     if (Grayscale.canToggle(ctx) && Grayscale.set(ctx, on)) gray = on
                     else Toast.makeText(ctx, "Falta un permiso (ver abajo)", Toast.LENGTH_SHORT).show()
+                })
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Activarla sola durante el Enfoque", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Switch(checked = autoGray, onCheckedChange = { on ->
+                    autoGray = on; prefs.autoGray = on
+                    Grayscale.sync(ctx); gray = Grayscale.isOn(ctx)
                 })
             }
             if (!Grayscale.canToggle(ctx)) {

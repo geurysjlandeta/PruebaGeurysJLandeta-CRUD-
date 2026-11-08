@@ -24,4 +24,17 @@ object Grayscale {
         Settings.Secure.putInt(ctx.contentResolver, MODE, 0) // 0 = monocromacia
         Settings.Secure.putInt(ctx.contentResolver, ENABLED, if (on) 1 else 0)
     }.getOrDefault(false)
+
+    /** Enciende los grises al empezar el Enfoque y los apaga al terminar, si el usuario lo activó. */
+    fun sync(ctx: Context) {
+        val prefs = Prefs(ctx)
+        if (!canToggle(ctx)) return
+        val focus = prefs.focusActive
+        if (prefs.autoGray && focus && !isOn(ctx)) {
+            if (set(ctx, true)) prefs.grayByUs = true
+        } else if (!focus && prefs.grayByUs) {
+            set(ctx, false)
+            prefs.grayByUs = false
+        }
+    }
 }
