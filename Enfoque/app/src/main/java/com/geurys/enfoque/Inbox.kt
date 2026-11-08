@@ -37,6 +37,7 @@ object Inbox {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 val m = Msg(o.getString("c"), o.optString("s"), o.getString("x"), o.getLong("t"), o.optBoolean("m"))
+                if (m.convo.trim().lowercase() in NotifParser.SYSTEM_TITLES) continue
                 if (seen.add(keyOf(m))) msgs.add(m)
             }
         }

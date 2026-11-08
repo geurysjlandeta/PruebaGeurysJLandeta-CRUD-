@@ -693,7 +693,7 @@ private fun Chat(convo: String, version: Int, onBack: () -> Unit) {
         }
         if (!canReply) {
             Text(
-                "Para responder, espera a que llegue un mensaje nuevo de este chat.",
+                "Desde aquí solo puedes leer. Para responder, usa «Responder» en la notificación de WhatsApp.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             )

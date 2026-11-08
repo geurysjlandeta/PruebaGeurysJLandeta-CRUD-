@@ -15,14 +15,11 @@ object NotifParser {
     @Volatile var lastInfo = ""
     @Volatile var lastSource = ""
 
+    /** Títulos de avisos internos de WhatsApp ("Checking for new messages", resúmenes, etc.), no son chats. */
+    val SYSTEM_TITLES = setOf("whatsapp", "whatsapp business")
+
     fun process(ctx: Context, n: Notification, key: String, source: String) {
-        lastSeenAt = System.currentTimeMillis()
-        lastSource = source
-        if (n.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT) != 0) {
-            lastInfo = "resumen ignorado"
-            Inbox.version.intValue++
-            return
-        }
+        if (n.flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT) != 0) return
 
         val postTime = n.`when`.takeIf { it > 0 } ?: System.currentTimeMillis()
         val extras = n.extras ?: Bundle()
@@ -31,10 +28,15 @@ object NotifParser {
             ?: extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)
             ?: extras.getCharSequence(Notification.EXTRA_TITLE))?.toString()?.takeIf { it.isNotBlank() }
         if (convo == null) {
+            lastSeenAt = System.currentTimeMillis(); lastSource = source
             lastInfo = "sin título (no se pudo leer)"
             Inbox.version.intValue++
             return
         }
+        if (convo.trim().lowercase() in SYSTEM_TITLES) return
+
+        lastSeenAt = System.currentTimeMillis()
+        lastSource = source
 
         var added = 0
         if (style != null && style.messages.isNotEmpty()) {

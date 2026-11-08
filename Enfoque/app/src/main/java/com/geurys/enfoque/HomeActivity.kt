@@ -105,7 +105,7 @@ private fun Home() {
                 fontSize = 76.sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(top = 36.dp)
             )
             Text(
-                SimpleDateFormat("EEEE d 'de' MMMM", Locale.getDefault()).format(now)
+                SimpleDateFormat("EEEE d 'de' MMMM", Locale("es", "DO")).format(now)
                     .replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.titleMedium, color = Color(0xFF94A3B8)
             )
@@ -314,7 +314,7 @@ private fun InlineChat(convo: String, version: Int, onBack: () -> Unit) {
     }
     if (!canReply) {
         Text(
-            "Para responder, espera a que llegue un mensaje nuevo de este chat.",
+            "Desde aquí solo puedes leer. Para responder, usa «Responder» en la notificación de WhatsApp.",
             style = MaterialTheme.typography.bodySmall, color = Color(0xFF94A3B8)
         )
     }
