@@ -1,8 +1,12 @@
 package com.geurys.enfoque
 
 import android.app.AppOpsManager
+import android.Manifest
 import android.app.usage.UsageStatsManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.content.Intent
 import android.os.Process
 import android.provider.Settings
@@ -18,15 +22,19 @@ object Usage {
         val mode = ops.checkOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), ctx.packageName
         )
-        return mode == AppOpsManager.MODE_ALLOWED
+        // En algunos celulares (Xiaomi, etc.) el sistema responde MODE_DEFAULT aunque el permiso esté dado.
+        return if (mode == AppOpsManager.MODE_DEFAULT) {
+            ctx.checkCallingOrSelfPermission(Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED
+        } else mode == AppOpsManager.MODE_ALLOWED
     }
 
     fun isBlockerEnabled(ctx: Context): Boolean {
         val enabled = Settings.Secure.getString(
             ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ) ?: return false
-        val me = "${ctx.packageName}/${BlockerService::class.java.name}"
-        return enabled.split(':').any { it.equals(me, ignoreCase = true) }
+        // El sistema puede guardar el nombre completo ("pkg/pkg.Clase") o el corto ("pkg/.Clase"): comparar como componente.
+        val me = ComponentName(ctx, BlockerService::class.java)
+        return enabled.split(':').any { ComponentName.unflattenFromString(it) == me }
     }
 
     fun hasNotificationAccess(ctx: Context) =
@@ -49,6 +57,17 @@ object Usage {
     /** Igual que [todayMillis] pero fuera del hilo principal. */
     suspend fun todayAsync(ctx: Context): Map<String, Long> = withContext(Dispatchers.IO) { todayMillis(ctx) }
 
-    fun usageSettingsIntent() = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+    /** Abre directo la entrada de Enfoque (Android 10+); si el celular no lo soporta, abre la lista general. */
+    fun usageSettingsIntent(ctx: Context) =
+        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
+
+    /** Ficha de la app: ahí está "Permitir ajustes restringidos" (⋮) cuando el interruptor sale gris. */
+    fun appDetailsIntent(ctx: Context) =
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
+
+    fun startSafely(ctx: Context, intent: Intent, fallback: Intent? = null) {
+        try { ctx.startActivity(intent) }
+        catch (e: Exception) { runCatching { ctx.startActivity(fallback ?: appDetailsIntent(ctx)) } }
+    }
     fun accessibilitySettingsIntent() = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
 }

@@ -125,18 +125,25 @@ private fun SetupCard(refresh: Int) {
         )
         PermissionRow(
             done = usage, title = "Acceso de uso",
-            desc = "Para medir cuánto usas cada app."
-        ) { ctx.startActivity(Usage.usageSettingsIntent()) }
+            desc = "Para medir cuánto usas cada app. En la lista, elige Enfoque y actívalo.",
+            onHelp = { helpRestricted(ctx) }
+        ) { Usage.startSafely(ctx, Usage.usageSettingsIntent(ctx), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         Spacer(Modifier.height(8.dp))
         PermissionRow(
             done = blocker, title = "Bloqueador",
-            desc = "Solo detecta qué app se abre para frenarla. No lee tu pantalla."
-        ) { ctx.startActivity(Usage.accessibilitySettingsIntent()) }
+            desc = "Solo detecta qué app se abre para frenarla. No lee tu pantalla. En Accesibilidad, busca Enfoque en apps descargadas.",
+            onHelp = { helpRestricted(ctx) }
+        ) { Usage.startSafely(ctx, Usage.accessibilitySettingsIntent()) }
     }
 }
 
+private fun helpRestricted(ctx: android.content.Context) {
+    Toast.makeText(ctx, "Toca ⋮ arriba a la derecha → Permitir ajustes restringidos", Toast.LENGTH_LONG).show()
+    Usage.startSafely(ctx, Usage.appDetailsIntent(ctx))
+}
+
 @Composable
-private fun PermissionRow(done: Boolean, title: String, desc: String, onClick: () -> Unit) {
+private fun PermissionRow(done: Boolean, title: String, desc: String, onHelp: (() -> Unit)? = null, onClick: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(28.dp).clip(CircleShape)
@@ -147,6 +154,9 @@ private fun PermissionRow(done: Boolean, title: String, desc: String, onClick: (
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(desc, style = MaterialTheme.typography.bodySmall)
+            if (!done && onHelp != null) {
+                TextButton(onClick = onHelp, contentPadding = PaddingValues(0.dp)) { Text("¿No te deja activarlo?") }
+            }
         }
         if (!done) {
             Spacer(Modifier.width(8.dp))
