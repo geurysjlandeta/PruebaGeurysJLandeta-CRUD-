@@ -1,5 +1,6 @@
 package com.geurys.enfoque
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,7 +20,17 @@ class BlockedActivity : ComponentActivity() {
         val label = runCatching {
             packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
         }.getOrDefault(pkg)
-        setContent { MaterialTheme { BlockedScreen(label, focus) { finish() } } }
+        val isWa = pkg in NotificationService.WHATSAPP
+        setContent {
+            MaterialTheme {
+                BlockedScreen(label, focus, isWa,
+                    onMessages = {
+                        startActivity(Intent(this, MainActivity::class.java).putExtra("tab", 3))
+                        finish()
+                    },
+                    onClose = { finish() })
+            }
+        }
     }
 
     companion object {
@@ -29,7 +40,7 @@ class BlockedActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BlockedScreen(app: String, focus: Boolean, onClose: () -> Unit) {
+private fun BlockedScreen(app: String, focus: Boolean, isWhatsApp: Boolean, onMessages: () -> Unit, onClose: () -> Unit) {
     Surface(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().padding(32.dp),
@@ -51,7 +62,13 @@ private fun BlockedScreen(app: String, focus: Boolean, onClose: () -> Unit) {
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(32.dp))
-            Button(onClick = onClose) { Text("Entendido") }
+            if (isWhatsApp) {
+                Button(onClick = onMessages) { Text("Solo responder mensajes") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onClose) { Text("Entendido") }
+            } else {
+                Button(onClick = onClose) { Text("Entendido") }
+            }
         }
     }
 }

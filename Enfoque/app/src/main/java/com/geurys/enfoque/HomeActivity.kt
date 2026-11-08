@@ -97,6 +97,15 @@ private fun Home() {
             )
             Spacer(Modifier.height(24.dp))
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (query.isBlank()) item {
+                    Text(
+                        "Mensajes",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.fillMaxWidth().combinedClickable(onClick = {
+                            ctx.startActivity(Intent(ctx, MainActivity::class.java).putExtra("tab", 3))
+                        }).padding(vertical = 8.dp)
+                    )
+                }
                 items(shown, key = { it.pkg }) { app ->
                     val blocked = prefs.isBlocked(ctx, app.pkg, usage)
                     Text(

@@ -9,8 +9,11 @@ App Android (Kotlin + Jetpack Compose) para usar menos el celular y enfocarte m�
 - **Launcher minimalista**: pantalla de inicio negra con reloj, favoritas (mantén pulsada una app para fijarla) y búsqueda. Las apps bloqueadas se ven con 🔒.
 - **Horario automático**, **escala de grises** (requiere `adb shell pm grant com.geurys.enfoque android.permission.WRITE_SECURE_SETTINGS` una vez), **aviso al 80 % del límite** y **contador de desbloqueos**.
 
+- **Mensajes (WhatsApp mínimo)**: bloquea WhatsApp en la pestaña Apps y responde en texto plano desde la pestaña Mensajes (lee las notificaciones y usa su botón "Responder"). Sin stickers, estados ni canales. Solo puedes responder a chats que te hayan escrito; no inicia chats nuevos.
+
 ## Permisos (se piden desde la app)
 1. **Acceso de uso**: medir el tiempo por app.
+3. **Acceso a notificaciones**: leer los mensajes de WhatsApp para la pestaña Mensajes (se guardan solo en el celular).
 2. **Servicio de accesibilidad**: solo detecta el paquete de la app que se abre para bloquearla; `canRetrieveWindowContent=false`, no lee la pantalla.
 
 ## Ejecutar

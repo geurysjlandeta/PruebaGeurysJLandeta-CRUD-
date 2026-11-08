@@ -5,8 +5,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,7 +29,7 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { App() } }
+        setContent { MaterialTheme { App(intent.getIntExtra("tab", 0)) } }
     }
 }
 
@@ -49,9 +52,9 @@ private fun fmt(ms: Long): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun App() {
+private fun App(startTab: Int) {
     val ctx = LocalContext.current
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember { mutableIntStateOf(startTab) }
     // Se incrementa al volver a la app para refrescar permisos y uso.
     var refresh by remember { mutableIntStateOf(0) }
     val owner = LocalLifecycleOwner.current
@@ -61,7 +64,7 @@ private fun App() {
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
 
-    val tabs = listOf("Hoy", "Apps", "Enfoque")
+    val tabs = listOf("Hoy", "Apps", "Enfoque", "Mensajes")
     Scaffold(
         topBar = { TopAppBar(title = { Text("Enfoque") }) },
         bottomBar = {
@@ -69,7 +72,7 @@ private fun App() {
                 tabs.forEachIndexed { i, t ->
                     NavigationBarItem(
                         selected = tab == i, onClick = { tab = i },
-                        icon = { Text(listOf("📊", "📱", "🎯")[i]) }, label = { Text(t) }
+                        icon = { Text(listOf("📊", "📱", "🎯", "💬")[i]) }, label = { Text(t) }
                     )
                 }
             }
@@ -80,7 +83,8 @@ private fun App() {
             when (tab) {
                 0 -> TodayTab(refresh)
                 1 -> AppsTab(refresh)
-                else -> FocusTab()
+                2 -> FocusTab()
+                else -> MessagesTab()
             }
         }
     }
@@ -91,7 +95,8 @@ private fun PermissionsCard(refresh: Int) {
     val ctx = LocalContext.current
     val usage = remember(refresh) { Usage.hasUsageAccess(ctx) }
     val blocker = remember(refresh) { Usage.isBlockerEnabled(ctx) }
-    if (usage && blocker) return
+    val listener = remember(refresh) { Usage.hasNotificationAccess(ctx) }
+    if (usage && blocker && listener) return
     Card(Modifier.fillMaxWidth().padding(12.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Faltan permisos", style = MaterialTheme.typography.titleMedium)
@@ -102,6 +107,10 @@ private fun PermissionsCard(refresh: Int) {
             if (!blocker) {
                 Text("Accesibilidad: solo para saber qué app se abre y bloquearla. No lee tu pantalla.")
                 Button(onClick = { ctx.startActivity(Usage.accessibilitySettingsIntent()) }) { Text("Activar bloqueador") }
+            }
+            if (!listener) {
+                Text("Notificaciones: para leer los mensajes de WhatsApp y responderlos desde la pestaña Mensajes.")
+                Button(onClick = { ctx.startActivity(Usage.notificationAccessIntent()) }) { Text("Dar acceso a notificaciones") }
             }
         }
     }
@@ -282,6 +291,92 @@ private fun FocusTab() {
         Text("Usa Enfoque como tu pantalla de inicio: solo reloj, favoritas y búsqueda.", style = MaterialTheme.typography.bodySmall)
         Button(onClick = { ctx.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }) {
             Text("Elegir como launcher")
+        }
+    }
+}
+
+@Composable
+private fun MessagesTab() {
+    val ctx = LocalContext.current
+    remember { Inbox.load(ctx) }
+    val version = Inbox.version.intValue
+    var open by remember { mutableStateOf<String?>(null) }
+    BackHandler(open != null) { open = null }
+
+    val convo = open
+    if (convo == null) {
+        val convos = remember(version) { Inbox.conversations() }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                Text(
+                    "Solo texto. Bloquea WhatsApp en la pestaña Apps y responde desde aquí, sin stickers ni estados.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            items(convos, key = { it.convo }) { m ->
+                Column(Modifier.fillMaxWidth().clickable { open = m.convo }.padding(vertical = 4.dp)) {
+                    Text(m.convo, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        (if (m.mine) "Tú: " else "") + m.text,
+                        maxLines = 1, style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            if (convos.isEmpty()) item {
+                Text("Aún no hay mensajes. Aparecerán aquí cuando te escriban en WhatsApp.")
+            }
+        }
+    } else {
+        Chat(convo, version) { open = null }
+    }
+}
+
+@Composable
+private fun Chat(convo: String, version: Int, onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val msgs = remember(version) { Inbox.messages(convo).reversed() }
+    val canReply = remember(version) { Inbox.canReply(convo) }
+    var text by remember { mutableStateOf("") }
+
+    Column(Modifier.fillMaxSize().imePadding().padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("‹ Volver") }
+            Text(convo, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
+        LazyColumn(Modifier.weight(1f), reverseLayout = true, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(msgs) { m ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (m.mine) Arrangement.End else Arrangement.Start
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (m.mine) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        val who = if (!m.mine && m.sender.isNotBlank() && m.sender != convo) "${m.sender}: " else ""
+                        Text(who + m.text, Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                    }
+                }
+            }
+        }
+        if (!canReply) {
+            Text(
+                "Para responder, espera a que llegue un mensaje nuevo de este chat.",
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+        Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = text, onValueChange = { text = it },
+                modifier = Modifier.weight(1f), enabled = canReply,
+                placeholder = { Text("Mensaje") }, maxLines = 4
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(enabled = canReply && text.isNotBlank(), onClick = {
+                if (Inbox.reply(ctx, convo, text.trim())) text = ""
+                else Toast.makeText(ctx, "Ya no se puede responder; espera un mensaje nuevo", Toast.LENGTH_SHORT).show()
+            }) { Text("Enviar") }
         }
     }
 }
